@@ -1,11 +1,12 @@
 import requests
+
 import pandas as pd
 import numpy as np
 import io
 from nba_api.stats.static import teams
 import time
 from nba_api.stats.endpoints import leaguegamefinder
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # from joypy import joyplot
 
 headers  = {
@@ -43,25 +44,45 @@ def get_play_by_play(game_id):
     return df
 
 def get_tip_off(pbp):
-    tip_off_participants = pbp[pbp['jumpBallWonPersonId'].notnull()]
+    try:
+        tip_off_participants = pbp[pbp['jumpBallWonPersonId'].notnull()]
+    except:
+        # pbp_data.append('tip_off ' + str(pbp['gameId']))
+        return None
     return tip_off_participants
 
+def get_first_basket(pbp):
+    try:
+        first_basket = pd.DataFrame(pbp.loc[pbp['shotResult'] == 'Made'].iloc[0]).transpose()
+    except:
+        # pbp_data.append('first_basket ' + str(pbp['gameId']))
+        return None
+    return first_basket
+# shotResult playerName	playerNameID
+
 # get data from all ids (takes awhile)
-pbpdata = []
+pbp_data = []
+first_basket_data = []
+tip_off_data = []
 cnt = 0
 for game_id in game_ids:
     cnt+=1
     print(game_id)
     game_data = get_play_by_play(game_id)
     tip_offs = get_tip_off(game_data)
-    pbpdata.append(tip_offs)
-    if cnt == 5:
-        break
-df = pd.concat(pbpdata, ignore_index=True)
+    first_basket = get_first_basket(game_data)
+    tip_off_data.append(tip_offs)
+    first_basket_data.append(first_basket)
 
-# calculate time elapsed between a free throw and whatever action came before it
-df = df.sort_values(by=['gameid', 'orderNumber'])
-df.to_csv('test.csv')
+def write_func(df,name):
 
+    df = pd.concat(df, ignore_index=True)
+    df = df.sort_values(by=['gameid', 'orderNumber'])
+    df.to_csv(f'{name}.csv')
+
+write_func(tip_off_data,'tip_offs')
+write_func(first_basket_data,'first_basket')
+with open('missed.txt', 'w') as f:
+    f.write(pbp_data)
 ###
 # read in cleaned data from GitHub, if you want
